@@ -1,3 +1,5 @@
+# Cross Entropy Method for RL on Cartpole. It takes around 50 epochs and 180 min to train on GTX 1650
+
 import numpy as np
 import gymnasium as gym
 from dataclasses import dataclass
@@ -11,7 +13,7 @@ import time
 
 
 @dataclass
-class Episode:
+class Episode: # Data class to store episodes data
     states: list
     actions: list
     reward_sum: float
@@ -23,9 +25,9 @@ class NN(nn.Module):
 
         self.nn=nn.Sequential(
             nn.Linear(inp_size,hidden_size),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(), # On testing with Relu leaky version gave more faster convergence
             nn.Linear(hidden_size,out_size),
-            nn.Softmax(dim=1)
+            nn.Softmax(dim=1) # To convert output to prob distribution
         )
 
     def forward(self,x):
@@ -65,13 +67,13 @@ class cross_entropy_rl:
                 obs=next_obs
             
             reward_sum=sum(rewards)
-            # print(f"Steps: {len(states)}")
+
             self.episodes.append(Episode(states,actions,reward_sum))
 
 
     def filter_episodes(self):
         epi_rewards=[x.reward_sum for x in self.episodes]
-        reward_band=np.percentile(epi_rewards,self.reward_percentile)
+        reward_band=np.percentile(epi_rewards,self.reward_percentile) # Take top episodes based on percentile
         
         train_obs=[]
         train_action=[]
@@ -89,11 +91,10 @@ class cross_entropy_rl:
         
         mean_reward=sum(epi_rewards)/len(epi_rewards)
 
-        self.episodes=good_episodes
+        self.episodes=good_episodes # Instead of throwing episodes next epoch better to store good episodes and propagate them forward
 
         train_obs_tensor=torch.tensor(np.stack(train_obs),dtype=torch.float32).to(device)
         train_action_tensor=torch.tensor(np.stack(train_action),dtype=torch.long).to(device)
-        # self.episodes=[]
     
         return train_obs_tensor,train_action_tensor,mean_reward,reward_band
 
@@ -102,9 +103,9 @@ class cross_entropy_rl:
 
 
 if __name__=="__main__":
-    EPOCHS=100
+    EPOCHS=50
     EPISODE_PLAY=50
-    REWARD_PERCENTILE=90
+    REWARD_PERCENTILE=92
 
     env=gym.make("CartPole-v1",render_mode="human")
     env.reset()
@@ -117,9 +118,9 @@ if __name__=="__main__":
     print(f"Training on {device}")
     
     nn_net=NN(obs_size,128,n_actions).to(device)
-    print(f"The neural net archi: {nn_net}")
+    print(f"The neural net architecture: {nn_net}")
 
-    objective = nn.CrossEntropyLoss()
+    objective = nn.CrossEntropyLoss() # Main objective func
     optimizer = optim.Adam(params=nn_net.parameters(), lr=0.1)
     writer = SummaryWriter(comment="-cartpole")
 

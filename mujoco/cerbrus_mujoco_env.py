@@ -24,7 +24,9 @@ class MujocoGymEnv(gym.Env):
         self.render_mode = render_mode
         self.time_step = 1.0 / 60.0
         self.elapsed_steps = 0
+        self.sensor_data=[0.0]*20 
         self.rot_euler=[0.0,0.0,0.0]
+        self.min_z_ht=0.15 # if the main body of the quad falls below this height we terminate
 
         # Action and observation spaces
         self.action_space = spaces.Box(
@@ -33,8 +35,8 @@ class MujocoGymEnv(gym.Env):
             dtype=np.float32
         )
 
-        self.obs_dim = self.model.nq + self.model.nv
-        self.observation_space = spaces.Box(
+        self.obs_dim = self.model.nq + 20
+        self.observation_space = spaces.Box(  # change this
             low=-np.inf, high=np.inf, shape=(self.obs_dim,), dtype=np.float32
         )
 
@@ -73,15 +75,18 @@ class MujocoGymEnv(gym.Env):
             glfw.set_scroll_callback(self.window, self.scroll)
 
     def _get_obs(self):
-        sensor_data = self.data.sensordata
-        rot_quat=sensor_data[16:]
+        self.sensor_data = self.data.sensordata
+
+        rot_quat=self.sensor_data[16:]
         self.rot_euler=self.euler_from_quaternion(rot_quat[1],rot_quat[2],rot_quat[3],rot_quat[0])
-        return np.concatenate([self.data.qpos, sensor_data[0:16]]).astype(np.float32) # all joint positions, acc_raw, gyro_raw, mag_raw
+        return np.concatenate([self.data.qpos, self.sensor_data[0:16]]).astype(np.float32) # all joint positions, acc_raw, gyro_raw, mag_raw
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         mj.mj_resetData(self.model, self.data)
         self.elapsed_steps = 0
+        self.sensor_data=[0.0]*20
+        self.rot_euler=[0.0,0.0,0.0]
         return self._get_obs(), {}
 
     def step(self, action):
@@ -94,13 +99,18 @@ class MujocoGymEnv(gym.Env):
         obs = self._get_obs()
         reward = self._compute_reward()
         terminated = self.data.time >= self.simend
-        truncated = False  # For simplicity; you can add timeouts
+        
+        if self.sensor_data[15]<=self.min_z_ht:
+            truncated=True
+        else:
+            truncated = False
         info = {}
 
         return obs, reward, terminated, truncated, info
 
-    def _compute_reward(self):
-        # Simple reward: stay upright, or customize based on your task
+    def _compute_reward(self): # Engineer your rewards
+        
+        
         return 1.0
 
     def render(self):
@@ -177,14 +187,17 @@ class MujocoGymEnv(gym.Env):
         return roll_x, pitch_y, yaw_z # in radians
 
 
+###--- Example Usage ---###
 
 if __name__ == "__main__":
     env = MujocoGymEnv(xml_path="cerbrus_scene.xml", render_mode="human")
     obs, _ = env.reset()
     action = [0]*12
-    for i in range(1000):
+    for i in range(500):
         print(i)
-        action=env.action_space.sample()
+        action=[x+0.01 for x in action]
         obs, reward, done, truncated, info = env.step(action)
+        if truncated:
+            break
         env.render()
     env.close()

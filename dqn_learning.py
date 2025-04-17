@@ -91,6 +91,7 @@ class DQN:
                 action=self.env.action_space.sample()
             else:
                 state_val=torch.as_tensor(self.state).to(DEVICE)
+                state_val=state_val.unsqueeze(0)
                 q_val=self.net(state_val)
                 _, act_v = torch.max(q_val, dim=1)
                 action = int(act_v.item())
@@ -151,7 +152,8 @@ if __name__=="__main__":
     INPUT_SHAPE=(1,84,84) # Channel Height Width is the format taken by pytorch
     MAX_EXP_BUFFER_SIZE=10000
 
-    SYNC_FRAME=1000 # After how many frames target net should gain main net weights
+    SYNC_FRAME=1000# After how many frames target net should gain main net weights
+    SYNC_CNT=0
 
     GAMMA = 0.99
     LEARNING_RATE=0.0001
@@ -159,10 +161,11 @@ if __name__=="__main__":
 
     EPSILON_START=1.0
     EPSILON_END=0.01
-    EPSILON_DECAY_RATE=1e-5
+    EPSILON_DECAY_RATE=1e-6
     EPSILON=1.0
 
     FRAME_CNT=0
+    EPISODE_CNT=0
     best_reward=0
 
     gym.register_envs(ale_py)
@@ -186,7 +189,10 @@ if __name__=="__main__":
     while True:
         reward,frame_cnt = dqn_agent.play_episode()
         FRAME_CNT += frame_cnt
-        EPSILON = max(EPSILON_END, EPSILON - EPSILON_DECAY_RATE)
+        SYNC_CNT += frame_cnt 
+        EPISODE_CNT+=1
+        print(f"EPISODE NO: {EPISODE_CNT} DONE. Current Frames: {FRAME_CNT}")
+        EPSILON = max(EPSILON_END, EPSILON - (EPSILON_DECAY_RATE*FRAME_CNT))
 
         if reward>best_reward:
             best_reward=reward
@@ -199,17 +205,21 @@ if __name__=="__main__":
         writer.add_scalar("epsilon", EPSILON, FRAME_CNT)
         writer.add_scalar("reward", best_reward, FRAME_CNT)
 
+        if SYNC_CNT>=SYNC_FRAME:
+            target_net.load_state_dict(net.state_dict())
+            print('Copied')
+            SYNC_CNT=0
+
         if len(exp_buffer)<MAX_EXP_BUFFER_SIZE:
             continue
         
-        if FRAME_CNT % SYNC_FRAME == 0:
-            target_net.load_state_dict(net.state_dict())
 
         optimizer.zero_grad()
         batch=exp_buffer.sample_experiences(BATCH_SIZE)
         loss_t=calculate_loss(batch,net,target_net)
         loss_t.backward()
         optimizer.step()
+        writer.add_scalar("loss", loss_t.item(), FRAME_CNT)
 
     torch.save(net.state_dict())
     writer.close()

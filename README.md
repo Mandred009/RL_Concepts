@@ -10,7 +10,7 @@ implementation of RL from scratch.
 
 Any contribution and details on mistakes would be highly appreciated.
 
-Note: 1) Ignore or delete the mujoco file if you want.
+Note: 
+i) Ignore or delete the mujoco file if you want.
 
-
-      2) Runs folder is for Tensorboard log files
+ii) Runs folder is for Tensorboard log files

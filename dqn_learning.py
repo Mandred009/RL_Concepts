@@ -1,3 +1,5 @@
+# DQN for Atari Breakout. I was not able to make this converge. Max reward was 5.
+
 import numpy as np
 import gymnasium as gym
 from dataclasses import dataclass
@@ -72,13 +74,19 @@ class DQN:
         self.net=net
         self.total_reward=0.0
         self.state=np.zeros(INPUT_SHAPE)
+        self.state_buffer=collections.deque(maxlen=4) # stack 4 prev frames
+        self.current_life=5
         self.reset_dqn()
 
     def reset_dqn(self):
         self.state,_=self.env.reset(seed=42)
+        self.state,_,_,_,_=self.env.step(1)
         self.state=turn_to_grayscale(self.state)
         self.total_reward=0.0
+        self.state_buffer.clear()
+        self.state_buffer.append(self.state)
 
+    @torch.no_grad()
     def play_episode(self):
         is_done=False
         is_trunc=False
@@ -87,22 +95,30 @@ class DQN:
 
         while True:
             frame_cnt+=1
-            if np.random.random() < EPSILON:
-                action=self.env.action_space.sample()
-            else:
-                state_val=torch.as_tensor(self.state).to(DEVICE)
-                state_val=state_val.unsqueeze(0)
-                q_val=self.net(state_val)
+            if len(self.state_buffer) == 4 and np.random.random() > EPSILON:
+                state_stack = np.array(self.state_buffer)
+                state_val = torch.as_tensor(state_stack).to(DEVICE).unsqueeze(0)  # shape: (1, 4, 84, 84)
+                q_val = self.net(state_val)
                 _, act_v = torch.max(q_val, dim=1)
                 action = int(act_v.item())
-            
-            next_state,reward,is_done,is_trunc,_=self.env.step(action)
+            else:
+                action = self.env.action_space.sample()
+            next_state,reward,is_done,is_trunc,info=self.env.step(action)
+
+            if info['lives']<5:
+                is_done=True
+
             next_state=turn_to_grayscale(next_state)
+            
             self.total_reward+=reward
 
-            exp=Experience(self.state,action,reward,next_state,is_done)
-            self.buffer.add_experience(exp)
+            if len(self.state_buffer)==4:
+                state_stack = np.array(self.state_buffer)
+                next_state_stack = np.append(state_stack[1:], [next_state], axis=0)
+                exp = Experience(state_stack, action, reward, next_state_stack, (is_done or is_trunc))
+                self.buffer.add_experience(exp)
 
+            self.state_buffer.append(next_state)
             self.state=next_state
 
             if is_done or is_trunc:
@@ -115,7 +131,7 @@ class DQN:
 def turn_to_grayscale(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     gray = cv2.resize(gray, (INPUT_SHAPE[1], INPUT_SHAPE[2]), interpolation=cv2.INTER_AREA)
-    return np.expand_dims(gray, axis=0)  # Add channel dimension
+    return gray  # Add channel dimension
 
 
 def calculate_loss(batch,net:DQN,target_net:DQN):
@@ -149,19 +165,19 @@ def calculate_loss(batch,net:DQN,target_net:DQN):
 
 if __name__=="__main__":
     DEVICE="cuda" if torch.cuda.is_available() else "cpu"
-    INPUT_SHAPE=(1,84,84) # Channel Height Width is the format taken by pytorch
-    MAX_EXP_BUFFER_SIZE=10000
+    INPUT_SHAPE=(4,84,84) # Channel Height Width is the format taken by pytorch
+    MAX_EXP_BUFFER_SIZE=50000
 
     SYNC_FRAME=1000# After how many frames target net should gain main net weights
     SYNC_CNT=0
 
-    GAMMA = 0.99
+    GAMMA = 0.98
     LEARNING_RATE=0.0001
     BATCH_SIZE=32
 
     EPSILON_START=1.0
-    EPSILON_END=0.01
-    EPSILON_DECAY_RATE=1e-6
+    EPSILON_END=0.1
+    EPSILON_DECAY_RATE=1e-8
     EPSILON=1.0
 
     FRAME_CNT=0
@@ -171,7 +187,7 @@ if __name__=="__main__":
     gym.register_envs(ale_py)
 
     # Initialise the environment
-    env = gym.make("ALE/Breakout-v5", render_mode="human")
+    env = gym.make("ALE/Breakout-v5", render_mode="rgb_array", repeat_action_probability=0.0)
 
     writer = SummaryWriter(comment="-DQN_AGENT")
  
@@ -201,6 +217,11 @@ if __name__=="__main__":
         if best_reward>800:
             print(f"Solved! Final Frame Count: {FRAME_CNT}")
             break
+        try:
+            if best_reward%100==0 and best_reward!=0:
+                torch.save(net.state_dict(),f"frame_no_{FRAME_CNT}.pt")
+        except:
+            torch.save(net.state_dict())
 
         writer.add_scalar("epsilon", EPSILON, FRAME_CNT)
         writer.add_scalar("reward", best_reward, FRAME_CNT)

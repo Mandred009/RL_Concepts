@@ -213,7 +213,7 @@ if __name__ == "__main__":
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on {DEVICE}")
 
-    save_path = os.path.join("saves", "ddpg")
+    save_path = os.path.join("saves")
     os.makedirs(save_path, exist_ok=True)
 
     # Environment setup

@@ -12,10 +12,11 @@ import time
 import os
 
 from ppo import PPO_ACTOR
+from sac import SAC_ACTOR
 
 
 @torch.no_grad()
-def test_agent_ppo(env: gym.Env, actor_net: PPO_ACTOR):
+def test_agent(env: gym.Env, actor_net: nn.Module):
     total_r = 0
     actor_net.eval()
 
@@ -39,12 +40,17 @@ def test_agent_ppo(env: gym.Env, actor_net: PPO_ACTOR):
 if __name__=="__main__":
     NO_OF_TESTS=1
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(DEVICE)
 
-    env = gym.make("BipedalWalker-v3",render_mode='human')
+    env = gym.make("HalfCheetah-v5",render_mode='human')
     N_ACTIONS = env.action_space.shape[0]
 
-    ppo_agent=PPO_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    # ppo_agent=PPO_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
 
-    ppo_agent.load_state_dict(torch.load("saves/ppo_best",weights_only=True))
+    # ppo_agent.load_state_dict(torch.load("saves/ppo_best",weights_only=True))
 
-    print(test_agent_ppo(env,ppo_agent))
+    sac_agent=SAC_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+
+    sac_agent.load_state_dict(torch.load("saves/sac_best",weights_only=True))
+
+    print(test_agent(env,sac_agent))

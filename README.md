@@ -1,3 +1,8 @@
-![image](RL_CONCEPTS repo.png)
-# RL_CONCEPTS
-A hands-on implementation of classic reinforcement learning algorithms with clear, easy-to-follow explanations and code examples.
+<h1 align="center">RL_CONCEPTS</h1>
+
+<p align="center">
+  <img src="RL_CONCEPTS repo.png" alt="rlc logo" width="80%">
+</p>
+
+
+

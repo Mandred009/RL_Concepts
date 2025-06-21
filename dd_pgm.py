@@ -308,7 +308,7 @@ if __name__ == "__main__":
 
             if test_reward > best_reward:
                 best_reward = test_reward
-                torch.save(actor_net.state_dict(), os.path.join(save_path, f"best_reward_{best_reward}"))
+                torch.save(actor_net.state_dict(), os.path.join(save_path, f"ddpg_best_{best_reward}"))
 
             if best_reward >= REWARD_LIMIT:
                 print(f"SOLVED AT STEP: {steps} || Total Episodes: {episodes}")

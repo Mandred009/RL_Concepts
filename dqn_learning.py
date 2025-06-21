@@ -16,7 +16,7 @@ import ale_py
 import collections
 
 import cv2
-
+import os
 
 @dataclass
 class Experience:
@@ -32,17 +32,17 @@ class NN(nn.Module):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(inp_size[0], 32, kernel_size=8, stride=4),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Flatten(),
         )
         size = self.conv(torch.zeros(1, *inp_size)).size()[-1]
         self.fc = nn.Sequential(
             nn.Linear(size, 512),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(512, no_actions)
         )
 
@@ -166,14 +166,15 @@ def calculate_loss(batch,net:DQN,target_net:DQN):
 if __name__=="__main__":
     DEVICE="cuda" if torch.cuda.is_available() else "cpu"
     INPUT_SHAPE=(4,84,84) # Channel Height Width is the format taken by pytorch
-    MAX_EXP_BUFFER_SIZE=50000
+    MAX_EXP_BUFFER_SIZE=1000000
+    MIN_BUFFER_TRAIN_SIZE=50000
 
     SYNC_FRAME=1000# After how many frames target net should gain main net weights
     SYNC_CNT=0
 
-    GAMMA = 0.98
+    GAMMA = 0.99
     LEARNING_RATE=0.0001
-    BATCH_SIZE=32
+    BATCH_SIZE=64
 
     EPSILON_START=1.0
     EPSILON_END=0.1
@@ -185,6 +186,9 @@ if __name__=="__main__":
     best_reward=0
 
     gym.register_envs(ale_py)
+
+    save_path = os.path.join("saves")
+    os.makedirs(save_path, exist_ok=True)
 
     # Initialise the environment
     env = gym.make("ALE/Breakout-v5", render_mode="rgb_array", repeat_action_probability=0.0)
@@ -207,21 +211,17 @@ if __name__=="__main__":
         FRAME_CNT += frame_cnt
         SYNC_CNT += frame_cnt 
         EPISODE_CNT+=1
-        print(f"EPISODE NO: {EPISODE_CNT} DONE. Current Frames: {FRAME_CNT}")
+        print(f"EPISODE NO: {EPISODE_CNT} || Current Frames: {FRAME_CNT} || Reward: {reward}")
         EPSILON = max(EPSILON_END, EPSILON - (EPSILON_DECAY_RATE*FRAME_CNT))
 
         if reward>best_reward:
             best_reward=reward
             print(f"BEST REWARD UPDATE: {best_reward} at FRAME CNT: {FRAME_CNT}")
+            torch.save(net.state_dict(), os.path.join(save_path, f"dqn_best_{best_reward}"))
         
         if best_reward>800:
             print(f"Solved! Final Frame Count: {FRAME_CNT}")
             break
-        try:
-            if best_reward%100==0 and best_reward!=0:
-                torch.save(net.state_dict(),f"frame_no_{FRAME_CNT}.pt")
-        except:
-            torch.save(net.state_dict())
 
         writer.add_scalar("epsilon", EPSILON, FRAME_CNT)
         writer.add_scalar("reward", best_reward, FRAME_CNT)
@@ -231,7 +231,7 @@ if __name__=="__main__":
             print('Copied')
             SYNC_CNT=0
 
-        if len(exp_buffer)<MAX_EXP_BUFFER_SIZE:
+        if len(exp_buffer)<MIN_BUFFER_TRAIN_SIZE:
             continue
         
 

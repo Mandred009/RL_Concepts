@@ -43,7 +43,7 @@ if __name__=="__main__":
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(DEVICE)
 
-    env = gym.make("HalfCheetah-v5",render_mode='human')
+    env = gym.make("HalfCheetah-v5",render_mode='human') # Change envrionment depending on network
     N_ACTIONS = env.action_space.shape[0]
 
     # ppo_agent=PPO_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)

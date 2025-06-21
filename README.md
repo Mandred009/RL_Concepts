@@ -1,8 +1,5 @@
 <h1 align="center">RL_CONCEPTS</h1>
 
-<p align="center">
-  <img src="RL_CONCEPTS repo.png" alt="rlc_logo_" width="80%">
-</p>
-
+![image](https://github.com/Mandred009/RL_Concepts/blob/d0343d3826f777829ff8e6d871dd17824b164dcc/RL_CONCEPTS%20repo.png)
 
 

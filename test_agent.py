@@ -13,6 +13,7 @@ import os
 
 from ppo import PPO_ACTOR
 from sac import SAC_ACTOR
+from t3d_pgm import T3D_ACTOR
 
 
 @torch.no_grad()
@@ -25,7 +26,7 @@ def test_agent(env: gym.Env, actor_net: nn.Module):
         state, _ = env.reset()
         while True:
             s_tensor = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0).to(DEVICE)
-            mu, std = actor_net(s_tensor)
+            mu,_= actor_net(s_tensor) # Change this depending on testing net
             action = torch.tanh(mu).squeeze(0).cpu().numpy()
 
             next_state, reward, is_done, is_trunc, _ = env.step(action)
@@ -52,5 +53,9 @@ if __name__=="__main__":
     sac_agent=SAC_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
 
     sac_agent.load_state_dict(torch.load("saves/sac_best",weights_only=True))
+
+    # t3d_agent=T3D_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+
+    # t3d_agent.load_state_dict(torch.load("saves/t3d_best",weights_only=True))
 
     print(test_agent(env,sac_agent))

@@ -1,4 +1,2 @@
-This repository contains various reinforcement learning methods implemented using Python and PyTorch.
-
-
-Every method has been written from scratch and made as digestible as possible.
+# RL_CONCEPTS
+A hands-on implementation of classic reinforcement learning algorithms with clear, easy-to-follow explanations and code examples.

@@ -2,15 +2,3 @@ This repository contains various reinforcement learning methods implemented usin
 
 
 Every method has been written from scratch and made as digestible as possible.
-
-
-Some methods may have some points I might have missed, because this repo was created as a way for me to learn, 
-implementation of RL from scratch.
-
-
-Any contribution and details on mistakes would be highly appreciated.
-
-Note: 
-i) Ignore or delete the mujoco file if you want.
-
-ii) Runs folder is for Tensorboard log files

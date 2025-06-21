@@ -74,7 +74,7 @@ class ExperienceReplay:
 
 # === Actor Network ===
 # Maps observations to continuous actions
-class T3D_ACTOR(nn.Module):
+class TD3_ACTOR(nn.Module):
     def __init__(self, input_size, n_actions):
         super().__init__()
         self.net = nn.Sequential(
@@ -94,7 +94,7 @@ class T3D_ACTOR(nn.Module):
 
 # === Critic Network ===
 # Estimates Q-values for (state, action) pairs
-class T3D_CRITIC(nn.Module):
+class TD3_CRITIC(nn.Module):
     def __init__(self, input_size, n_actions):
         super().__init__()
         self.obs_net = nn.Sequential(  # Processes state input
@@ -116,8 +116,8 @@ class T3D_CRITIC(nn.Module):
 
 # === TD3 Agent ===
 # Plays episodes, adds experiences to buffer
-class T3D:
-    def __init__(self, env: gym.Env, net: T3D_ACTOR, buffer: ExperienceReplay):
+class TD3:
+    def __init__(self, env: gym.Env, net: TD3_ACTOR, buffer: ExperienceReplay):
         self.env = env
         self.net = net
         self.buffer = buffer
@@ -178,10 +178,10 @@ def soft_update(target_net: nn.Module, source_net: nn.Module):
 
 # === Evaluate Policy ===
 @torch.no_grad()
-def test_agent(env: gym.Env, actor_net: T3D_ACTOR):
+def test_agent(env: gym.Env, actor_net: TD3_ACTOR):
     total_r = 0
 
-    for t in range(NOT_OF_TEST_EPI):
+    for t in range(NUM_OF_TEST_EPI):
         print(f"t:{t}")
         state, _ = env.reset()
         while True:
@@ -196,7 +196,7 @@ def test_agent(env: gym.Env, actor_net: T3D_ACTOR):
 
             total_r += reward
 
-    return total_r / NOT_OF_TEST_EPI
+    return total_r / NUM_OF_TEST_EPI
 
 
 # === MAIN TRAINING LOOP ===
@@ -206,7 +206,7 @@ if __name__ == "__main__":
     LEARNING_RATE_ACTOR = 1e-4
     LEARNING_RATE_CRITIC = 1e-3
     POLICY_DELAY = 2  # Delays actor updates to stabilize training
-    TARGET_NOISE_STD = 0.2
+    TARGET_NOISE_STD = 0.2 # Noise to be added to target actor output
     TARGET_NOISE_CLIP = 0.5
     ACTION_MIN = -1
     ACTION_MAX = 1
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     BATCH_SIZE = 64
     TAU_SOFT_UP = 0.005
     TEST_ITER = 100
-    NOT_OF_TEST_EPI = 3
+    NUM_OF_TEST_EPI = 3
     REWARD_LIMIT = 10000
 
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -232,13 +232,13 @@ if __name__ == "__main__":
     # === Initialize Components ===
     ou_noise = OUNoise(size=N_ACTIONS)
 
-    actor_net = T3D_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
-    critic_net_q1 = T3D_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
-    critic_net_q2 = T3D_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    actor_net = TD3_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    critic_net_q1 = TD3_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    critic_net_q2 = TD3_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
 
-    target_actor_net = T3D_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
-    target_critic_net_q1 = T3D_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
-    target_critic_net_q2 = T3D_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    target_actor_net = TD3_ACTOR(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    target_critic_net_q1 = TD3_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
+    target_critic_net_q2 = TD3_CRITIC(env.observation_space.shape[0], N_ACTIONS).to(DEVICE)
 
     # === Sync Target Networks ===
     target_actor_net.load_state_dict(actor_net.state_dict())
@@ -252,17 +252,17 @@ if __name__ == "__main__":
 
     # === Agent and Replay Buffer ===
     exp_buffer = ExperienceReplay(MAX_BUFFER)
-    t3d_agent = T3D(env, actor_net, exp_buffer)
+    td3_agent = TD3(env, actor_net, exp_buffer)
 
     # === Logger ===
-    writer = SummaryWriter(comment="-T3D")
+    writer = SummaryWriter(comment="-TD3")
     steps, episodes = 0, 0
     best_reward = 0
     start_time = time.time()
 
     # === Training Loop ===
     while True:
-        reward, stp = t3d_agent.play_episode()
+        reward, stp = td3_agent.play_episode()
         steps += stp
         episodes += 1
 
@@ -333,7 +333,7 @@ if __name__ == "__main__":
 
             if test_reward > best_reward:
                 best_reward = test_reward
-                torch.save(actor_net.state_dict(), os.path.join(save_path, f"t3d_best_{best_reward}"))
+                torch.save(actor_net.state_dict(), os.path.join(save_path, f"td3_best_{best_reward}"))
 
             if best_reward >= REWARD_LIMIT:
                 print(f"SOLVED AT STEP: {steps} || Total Episodes: {episodes}")

@@ -1,4 +1,4 @@
-# DQN for Atari Breakout. I was not able to make this converge. Max reward was 5.
+# DQN for Atari Breakout. I was not able to make this converge training on GTX 1650. Max reward was 5.
 
 # Core libraries
 import numpy as np

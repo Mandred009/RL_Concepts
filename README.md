@@ -11,6 +11,8 @@
 The different methods along with their script name is listed below. The theory related to that method can be found in my blog site linked with each method.
 [Intro to RL Blog](https://roboticsrave.blogspot.com/2025/06/reinforcement-learning-basics.html)
 
+The _saves_ folder contain trained models for PPO, SAC and TD3.
+
 Currently there are 9 methods. I will add more methods in the future.
 
 **1) Q‑Learning** — _q_learning.py_  >>[Blog Link Q](https://roboticsrave.blogspot.com/2025/06/reinforcement-learning-basics-q-learning.html)
